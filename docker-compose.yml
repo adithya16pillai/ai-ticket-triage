@@ -1,0 +1,36 @@
+# Brings up Postgres + the API (which runs migrations on start).
+# The frontend runs locally with `npm run dev` (see frontend/README note).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: triage
+      POSTGRES_PASSWORD: triage
+      POSTGRES_DB: triage
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U triage"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://triage:triage@db:5432/triage
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      TRIAGE_ENABLED: "true"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TRIAGE_MODEL: claude-haiku-4-5-20251001
+      TRIAGE_CONFIDENCE_THRESHOLD: "0.6"
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
