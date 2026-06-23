@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     # Suggestions below this confidence are discarded into the manual fallback.
     triage_confidence_threshold: float = 0.6
 
+    # --- AI reply drafting ---
+    # Same responsible-AI pattern as triage; a draft is always agent-editable.
+    reply_enabled: bool = True
+    reply_model: str = "claude-haiku-4-5-20251001"
+    reply_max_tokens: int = 1024
+    reply_timeout_seconds: float = 20.0
+    reply_confidence_threshold: float = 0.5
+
     # --- Auth ---
     # When false, the API is open (single-agent demo) and events have no actor.
     auth_enabled: bool = False

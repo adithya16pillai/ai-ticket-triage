@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.activity import record_event, triage_payload
 from app.enums import TicketEventType, TicketPriority, TicketStatus, TriageSource
 from app.models import Ticket, TicketEvent
+from app.reply import ReplyDraftOutcome, draft_reply
 from app.schemas import TicketCreate, TicketUpdate
 from app.triage import TriageOutcome, triage_ticket
 
@@ -192,6 +193,37 @@ def retriage_ticket(
     db.commit()
     db.refresh(ticket)
     return ticket
+
+
+def draft_ticket_reply(
+    db: Session, ticket: Ticket, *, actor: str | None = None
+) -> ReplyDraftOutcome:
+    """Generate an AI reply draft for an agent to edit. Persists/sends nothing —
+    it only returns the suggestion and records that a draft was produced."""
+    outcome = draft_reply(ticket.title, ticket.description)
+
+    if outcome.source == TriageSource.ai:
+        conf = f"{outcome.confidence:.2f}" if outcome.confidence is not None else "n/a"
+        summary = f"AI drafted a reply (confidence {conf})"
+    else:
+        summary = f"Reply draft fell back: {outcome.reason or 'unknown'}"
+
+    record_event(
+        db,
+        ticket,
+        TicketEventType.draft_generated,
+        summary,
+        payload={
+            "source": outcome.source.value,
+            "confidence": outcome.confidence,
+            "reason": outcome.reason,
+            "needs_human_review": outcome.needs_human_review,
+            "tone": outcome.tone,
+        },
+        actor=actor,
+    )
+    db.commit()
+    return outcome
 
 
 def list_ticket_events(db: Session, ticket_id: uuid.UUID) -> list[TicketEvent]:

@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { ConfidenceBadge, TriageSourceBadge } from "../components/badges";
-import { Button, Input, Label, Select } from "../components/ui";
+import { Button, Input, Label, Select, Textarea } from "../components/ui";
 import {
   useDeleteTicket,
+  useDraftReply,
   useRetriage,
   useTicket,
   useTicketEvents,
@@ -31,10 +32,14 @@ export function TicketDetailPage() {
   const update = useUpdateTicket(id);
   const del = useDeleteTicket();
   const retriage = useRetriage(id);
+  const draftReply = useDraftReply(id);
   const { data: events } = useTicketEvents(id);
 
   // Local draft so the agent edits, then commits with Save.
   const [draft, setDraft] = useState<TicketUpdate>({});
+  // Editable AI reply draft — human-in-the-loop before it's ever sent.
+  const [reply, setReply] = useState("");
+  const [replyNote, setReplyNote] = useState<string | null>(null);
   useEffect(() => {
     if (ticket) {
       setDraft({
@@ -61,6 +66,26 @@ export function TicketDetailPage() {
       ...draft,
       suggested_team: draft.suggested_team || null,
       assignee: draft.assignee || null,
+    });
+  }
+
+  function generateDraft() {
+    setReplyNote(null);
+    draftReply.mutate(undefined, {
+      onSuccess: (d) => {
+        if (d.triage_source === "fallback") {
+          setReplyNote(
+            `The model could not draft a reply${d.reason ? ` (${d.reason})` : ""}. Write one below.`,
+          );
+        } else {
+          setReply(d.reply_text);
+          setReplyNote(
+            d.needs_human_review
+              ? "The model flagged this draft for careful human review before sending."
+              : "AI draft ready — edit before sending.",
+          );
+        }
+      },
     });
   }
 
@@ -173,6 +198,29 @@ export function TicketDetailPage() {
         {update.isSuccess && (
           <p className="text-xs text-emerald-600">Saved.</p>
         )}
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-800">Reply</h2>
+          <Button
+            variant="secondary"
+            onClick={generateDraft}
+            disabled={draftReply.isPending}
+          >
+            {draftReply.isPending ? "Drafting…" : "Draft reply with AI"}
+          </Button>
+        </div>
+        <Textarea
+          rows={6}
+          value={reply}
+          onChange={(e) => setReply(e.target.value)}
+          placeholder="Write a reply, or let the AI draft one for you to edit…"
+        />
+        {replyNote && <p className="text-xs text-slate-500">{replyNote}</p>}
+        <p className="text-xs text-slate-400">
+          Drafts are suggestions — review and edit before sending.
+        </p>
       </div>
 
       <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">

@@ -61,6 +61,15 @@ export interface TicketFilters {
   assignee?: string;
 }
 
+export interface ReplyDraft {
+  reply_text: string;
+  tone: string | null;
+  needs_human_review: boolean;
+  triage_source: TriageSource;
+  confidence: number | null;
+  reason: string | null;
+}
+
 export type UserRole = "agent" | "admin";
 
 export interface User {

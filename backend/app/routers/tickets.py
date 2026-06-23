@@ -9,7 +9,13 @@ from app import crud
 from app.auth.deps import current_actor
 from app.database import get_db
 from app.enums import TicketPriority, TicketStatus
-from app.schemas import TicketCreate, TicketEventRead, TicketRead, TicketUpdate
+from app.schemas import (
+    ReplyDraftRead,
+    TicketCreate,
+    TicketEventRead,
+    TicketRead,
+    TicketUpdate,
+)
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -73,6 +79,24 @@ def retriage_ticket(
 ) -> TicketRead:
     ticket = _get_or_404(db, ticket_id)
     return crud.retriage_ticket(db, ticket, actor=actor)
+
+
+@router.post("/{ticket_id}/draft-reply", response_model=ReplyDraftRead)
+def draft_reply(
+    ticket_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: str | None = Depends(current_actor),
+) -> ReplyDraftRead:
+    ticket = _get_or_404(db, ticket_id)
+    outcome = crud.draft_ticket_reply(db, ticket, actor=actor)
+    return ReplyDraftRead(
+        reply_text=outcome.reply_text,
+        tone=outcome.tone,
+        needs_human_review=outcome.needs_human_review,
+        triage_source=outcome.source,
+        confidence=outcome.confidence,
+        reason=outcome.reason,
+    )
 
 
 @router.get("/{ticket_id}/events", response_model=list[TicketEventRead])

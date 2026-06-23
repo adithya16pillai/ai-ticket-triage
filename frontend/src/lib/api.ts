@@ -6,6 +6,7 @@ import type {
   TicketEvent,
   TicketFilters,
   TicketUpdate,
+  ReplyDraft,
   User,
 } from "../types";
 
@@ -82,6 +83,9 @@ export const api = {
 
   listTicketEvents: (id: string) =>
     request<TicketEvent[]>(`/tickets/${id}/events`),
+
+  draftReply: (id: string) =>
+    request<ReplyDraft>(`/tickets/${id}/draft-reply`, { method: "POST" }),
 
   health: () =>
     request<{ auth_enabled: boolean; triage_enabled: boolean }>("/health", {

@@ -79,6 +79,16 @@ class TokenRead(BaseModel):
     user: UserRead
 
 
+class ReplyDraftRead(BaseModel):
+    """An AI-suggested reply draft. Returned for the agent to edit; never sent."""
+    reply_text: str
+    tone: str | None
+    needs_human_review: bool
+    triage_source: TriageSource  # ai = validated suggestion; fallback = unavailable
+    confidence: float | None
+    reason: str | None
+
+
 class TicketEventRead(BaseModel):
     """One audit-trail entry for a ticket."""
     model_config = ConfigDict(from_attributes=True)

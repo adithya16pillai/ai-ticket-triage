@@ -76,3 +76,11 @@ export function useRetriage(id: string) {
     },
   });
 }
+
+export function useDraftReply(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.draftReply(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.events(id) }),
+  });
+}
