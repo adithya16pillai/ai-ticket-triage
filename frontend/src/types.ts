@@ -61,5 +61,26 @@ export interface TicketFilters {
   assignee?: string;
 }
 
+export type UserRole = "agent" | "admin";
+
+export interface User {
+  id: string;
+  email: string;
+  display_name: string;
+  role: UserRole;
+  created_at: string;
+}
+
+export interface AuthToken {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 export const STATUSES: TicketStatus[] = ["open", "in_progress", "resolved"];
 export const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];

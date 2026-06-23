@@ -13,6 +13,7 @@ from app.enums import (
     TicketPriority,
     TicketStatus,
     TriageSource,
+    UserRole,
     UNCATEGORISED,
 )
 
@@ -108,3 +109,23 @@ class TicketEvent(Base):
     )
 
     ticket: Mapped["Ticket"] = relationship(back_populates="events")
+
+
+class User(Base):
+    """A helpdesk agent. Auth is feature-flagged (settings.auth_enabled); when
+    off the app runs open for a single-agent demo."""
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role"), nullable=False, default=UserRole.agent
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

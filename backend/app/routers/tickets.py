@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app import crud
+from app.auth.deps import current_actor
 from app.database import get_db
 from app.enums import TicketPriority, TicketStatus
 from app.schemas import TicketCreate, TicketEventRead, TicketRead, TicketUpdate
@@ -14,8 +15,12 @@ router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 
 @router.post("", response_model=TicketRead, status_code=status.HTTP_201_CREATED)
-def create_ticket(payload: TicketCreate, db: Session = Depends(get_db)) -> TicketRead:
-    return crud.create_ticket(db, payload)
+def create_ticket(
+    payload: TicketCreate,
+    db: Session = Depends(get_db),
+    actor: str | None = Depends(current_actor),
+) -> TicketRead:
+    return crud.create_ticket(db, payload, actor=actor)
 
 
 @router.get("", response_model=list[TicketRead])
@@ -45,10 +50,13 @@ def get_ticket(ticket_id: uuid.UUID, db: Session = Depends(get_db)) -> TicketRea
 
 @router.patch("/{ticket_id}", response_model=TicketRead)
 def update_ticket(
-    ticket_id: uuid.UUID, payload: TicketUpdate, db: Session = Depends(get_db)
+    ticket_id: uuid.UUID,
+    payload: TicketUpdate,
+    db: Session = Depends(get_db),
+    actor: str | None = Depends(current_actor),
 ) -> TicketRead:
     ticket = _get_or_404(db, ticket_id)
-    return crud.update_ticket(db, ticket, payload)
+    return crud.update_ticket(db, ticket, payload, actor=actor)
 
 
 @router.delete("/{ticket_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -58,9 +66,13 @@ def delete_ticket(ticket_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
 
 
 @router.post("/{ticket_id}/retriage", response_model=TicketRead)
-def retriage_ticket(ticket_id: uuid.UUID, db: Session = Depends(get_db)) -> TicketRead:
+def retriage_ticket(
+    ticket_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: str | None = Depends(current_actor),
+) -> TicketRead:
     ticket = _get_or_404(db, ticket_id)
-    return crud.retriage_ticket(db, ticket)
+    return crud.retriage_ticket(db, ticket, actor=actor)
 
 
 @router.get("/{ticket_id}/events", response_model=list[TicketEventRead])

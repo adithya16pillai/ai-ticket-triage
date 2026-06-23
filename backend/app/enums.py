@@ -34,4 +34,9 @@ class TicketEventType(str, Enum):
     comment = "comment"               # a reply was posted (F5)
 
 
+class UserRole(str, Enum):
+    agent = "agent"
+    admin = "admin"
+
+
 UNCATEGORISED = "uncategorised"

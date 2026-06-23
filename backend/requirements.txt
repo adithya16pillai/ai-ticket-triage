@@ -6,3 +6,5 @@ psycopg2-binary>=2.9
 pydantic>=2.7,<3.0
 pydantic-settings>=2.3
 anthropic>=0.40
+passlib>=1.7
+PyJWT>=2.8

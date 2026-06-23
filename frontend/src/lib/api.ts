@@ -1,19 +1,39 @@
 import type {
+  AuthToken,
+  LoginRequest,
   Ticket,
   TicketCreate,
   TicketEvent,
   TicketFilters,
   TicketUpdate,
+  User,
 } from "../types";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
+const TOKEN_KEY = "triage_token";
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string | null): void {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
   if (!res.ok) {
+    if (res.status === 401) setToken(null); // stale/invalid token — drop it
     let detail = res.statusText;
     try {
       const body = await res.json();
@@ -62,4 +82,17 @@ export const api = {
 
   listTicketEvents: (id: string) =>
     request<TicketEvent[]>(`/tickets/${id}/events`),
+
+  health: () =>
+    request<{ auth_enabled: boolean; triage_enabled: boolean }>("/health", {
+      // /health lives at the API root, not under /tickets
+    }),
+
+  login: (payload: LoginRequest) =>
+    request<AuthToken>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  me: () => request<User>("/auth/me"),
 };

@@ -4,7 +4,13 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.enums import TicketEventType, TicketPriority, TicketStatus, TriageSource
+from app.enums import (
+    TicketEventType,
+    TicketPriority,
+    TicketStatus,
+    TriageSource,
+    UserRole,
+)
 
 
 class TicketCreate(BaseModel):
@@ -44,6 +50,33 @@ class TicketRead(BaseModel):
     triaged_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=1)
+
+
+class RegisterRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=8)
+    display_name: str = Field(min_length=1, max_length=120)
+
+
+class UserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: str
+    display_name: str
+    role: UserRole
+    created_at: datetime
+
+
+class TokenRead(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserRead
 
 
 class TicketEventRead(BaseModel):

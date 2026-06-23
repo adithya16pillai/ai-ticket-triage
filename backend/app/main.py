@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import tickets
+from app.routers import auth, tickets
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,6 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(tickets.router)
 
 
@@ -28,4 +29,5 @@ def health() -> dict:
         "status": "ok",
         "triage_enabled": settings.triage_enabled,
         "triage_model": settings.triage_model if settings.triage_enabled else None,
+        "auth_enabled": settings.auth_enabled,
     }

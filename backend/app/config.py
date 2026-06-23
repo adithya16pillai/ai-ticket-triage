@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     # Suggestions below this confidence are discarded into the manual fallback.
     triage_confidence_threshold: float = 0.6
 
+    # --- Auth ---
+    # When false, the API is open (single-agent demo) and events have no actor.
+    auth_enabled: bool = False
+    jwt_secret: str = "dev-only-change-me-in-production-0123456789"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 12
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
