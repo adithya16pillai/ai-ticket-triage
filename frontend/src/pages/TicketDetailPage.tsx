@@ -7,10 +7,22 @@ import {
   useDeleteTicket,
   useRetriage,
   useTicket,
+  useTicketEvents,
   useUpdateTicket,
 } from "../lib/queries";
 import { PRIORITIES, STATUSES } from "../types";
-import type { TicketUpdate } from "../types";
+import type { TicketEventType, TicketUpdate } from "../types";
+
+const EVENT_STYLES: Record<TicketEventType, { dot: string; label: string }> = {
+  created: { dot: "bg-slate-400", label: "Created" },
+  triaged: { dot: "bg-violet-500", label: "AI triaged" },
+  triage_fallback: { dot: "bg-yellow-500", label: "Fallback" },
+  manual_override: { dot: "bg-sky-500", label: "Manual override" },
+  status_changed: { dot: "bg-emerald-500", label: "Status" },
+  retriaged: { dot: "bg-violet-500", label: "Re-triaged" },
+  draft_generated: { dot: "bg-indigo-500", label: "AI draft" },
+  comment: { dot: "bg-slate-500", label: "Comment" },
+};
 
 export function TicketDetailPage() {
   const { id = "" } = useParams();
@@ -19,6 +31,7 @@ export function TicketDetailPage() {
   const update = useUpdateTicket(id);
   const del = useDeleteTicket();
   const retriage = useRetriage(id);
+  const { data: events } = useTicketEvents(id);
 
   // Local draft so the agent edits, then commits with Save.
   const [draft, setDraft] = useState<TicketUpdate>({});
@@ -159,6 +172,36 @@ export function TicketDetailPage() {
         </div>
         {update.isSuccess && (
           <p className="text-xs text-emerald-600">Saved.</p>
+        )}
+      </div>
+
+      <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-800">History</h2>
+        {!events || events.length === 0 ? (
+          <p className="text-sm text-slate-500">No activity yet.</p>
+        ) : (
+          <ol className="space-y-3">
+            {events.map((ev) => {
+              const style = EVENT_STYLES[ev.event_type];
+              return (
+                <li key={ev.id} className="flex gap-3">
+                  <span
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${style.dot}`}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm text-slate-700">
+                      <span className="font-medium">{style.label}</span> ·{" "}
+                      {ev.summary}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {new Date(ev.created_at).toLocaleString()}
+                      {ev.actor ? ` · ${ev.actor}` : ""}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
         )}
       </div>
     </div>

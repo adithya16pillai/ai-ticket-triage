@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.enums import TicketPriority, TicketStatus, TriageSource
+from app.enums import TicketEventType, TicketPriority, TicketStatus, TriageSource
 
 
 class TicketCreate(BaseModel):
@@ -44,3 +44,16 @@ class TicketRead(BaseModel):
     triaged_at: datetime | None
     created_at: datetime
     updated_at: datetime
+
+
+class TicketEventRead(BaseModel):
+    """One audit-trail entry for a ticket."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    ticket_id: uuid.UUID
+    event_type: TicketEventType
+    summary: str
+    payload: dict | None
+    actor: str | None
+    created_at: datetime

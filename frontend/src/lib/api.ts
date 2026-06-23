@@ -1,6 +1,7 @@
 import type {
   Ticket,
   TicketCreate,
+  TicketEvent,
   TicketFilters,
   TicketUpdate,
 } from "../types";
@@ -58,4 +59,7 @@ export const api = {
 
   retriageTicket: (id: string) =>
     request<Ticket>(`/tickets/${id}/retriage`, { method: "POST" }),
+
+  listTicketEvents: (id: string) =>
+    request<TicketEvent[]>(`/tickets/${id}/events`),
 };

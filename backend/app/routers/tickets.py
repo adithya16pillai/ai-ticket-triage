@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.database import get_db
 from app.enums import TicketPriority, TicketStatus
-from app.schemas import TicketCreate, TicketRead, TicketUpdate
+from app.schemas import TicketCreate, TicketEventRead, TicketRead, TicketUpdate
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
@@ -61,3 +61,11 @@ def delete_ticket(ticket_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
 def retriage_ticket(ticket_id: uuid.UUID, db: Session = Depends(get_db)) -> TicketRead:
     ticket = _get_or_404(db, ticket_id)
     return crud.retriage_ticket(db, ticket)
+
+
+@router.get("/{ticket_id}/events", response_model=list[TicketEventRead])
+def list_ticket_events(
+    ticket_id: uuid.UUID, db: Session = Depends(get_db)
+) -> list[TicketEventRead]:
+    _get_or_404(db, ticket_id)
+    return crud.list_ticket_events(db, ticket_id)

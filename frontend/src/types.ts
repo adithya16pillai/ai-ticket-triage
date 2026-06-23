@@ -34,6 +34,26 @@ export interface TicketUpdate {
   assignee?: string | null;
 }
 
+export type TicketEventType =
+  | "created"
+  | "triaged"
+  | "triage_fallback"
+  | "manual_override"
+  | "status_changed"
+  | "retriaged"
+  | "draft_generated"
+  | "comment";
+
+export interface TicketEvent {
+  id: string;
+  ticket_id: string;
+  event_type: TicketEventType;
+  summary: string;
+  payload: Record<string, unknown> | null;
+  actor: string | null;
+  created_at: string;
+}
+
 export interface TicketFilters {
   status?: TicketStatus;
   priority?: TicketPriority;

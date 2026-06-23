@@ -11,6 +11,7 @@ const keys = {
   all: ["tickets"] as const,
   list: (filters: TicketFilters) => ["tickets", "list", filters] as const,
   detail: (id: string) => ["tickets", "detail", id] as const,
+  events: (id: string) => ["tickets", "detail", id, "events"] as const,
 };
 
 export function useTickets(filters: TicketFilters) {
@@ -24,6 +25,14 @@ export function useTicket(id: string) {
   return useQuery({
     queryKey: keys.detail(id),
     queryFn: () => api.getTicket(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useTicketEvents(id: string) {
+  return useQuery({
+    queryKey: keys.events(id),
+    queryFn: () => api.listTicketEvents(id),
     enabled: Boolean(id),
   });
 }
@@ -42,6 +51,7 @@ export function useUpdateTicket(id: string) {
     mutationFn: (payload: TicketUpdate) => api.updateTicket(id, payload),
     onSuccess: (ticket) => {
       qc.setQueryData(keys.detail(id), ticket);
+      qc.invalidateQueries({ queryKey: keys.events(id) });
       qc.invalidateQueries({ queryKey: keys.all });
     },
   });
@@ -61,6 +71,7 @@ export function useRetriage(id: string) {
     mutationFn: () => api.retriageTicket(id),
     onSuccess: (ticket) => {
       qc.setQueryData(keys.detail(id), ticket);
+      qc.invalidateQueries({ queryKey: keys.events(id) });
       qc.invalidateQueries({ queryKey: keys.all });
     },
   });
