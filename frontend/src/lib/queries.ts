@@ -7,6 +7,7 @@ import {
 import { api } from "./api";
 import type {
   CommentCreate,
+  Ticket,
   TicketCreate,
   TicketFilters,
   TicketUpdate,
@@ -32,6 +33,23 @@ export function useTicket(id: string) {
     queryKey: keys.detail(id),
     queryFn: () => api.getTicket(id),
     enabled: Boolean(id),
+  });
+}
+
+/** Polls a ticket while async triage is still pending (queued fallback),
+ *  stopping automatically once a worker fills in the triage. */
+export function useTicketPolling(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.detail(id),
+    queryFn: () => api.getTicket(id),
+    enabled: Boolean(id) && enabled,
+    refetchInterval: (query) => {
+      const t = query.state.data as Ticket | undefined;
+      if (!t) return 1500;
+      const queued =
+        t.triage_source === "fallback" && t.triage_reason === "queued for triage";
+      return queued ? 1500 : false;
+    },
   });
 }
 

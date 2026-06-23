@@ -17,10 +17,22 @@ services:
       timeout: 3s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build: ./backend
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg2://triage:triage@db:5432/triage
@@ -29,8 +41,29 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       TRIAGE_MODEL: claude-haiku-4-5-20251001
       TRIAGE_CONFIDENCE_THRESHOLD: "0.6"
+      ASYNC_TRIAGE_ENABLED: ${ASYNC_TRIAGE_ENABLED:-false}
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "8000:8000"
+
+  # Runs triage in the background when ASYNC_TRIAGE_ENABLED=true. Harmless to
+  # leave running in sync mode (it just idles with no jobs enqueued).
+  worker:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://triage:triage@db:5432/triage
+      TRIAGE_ENABLED: "true"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TRIAGE_MODEL: claude-haiku-4-5-20251001
+      TRIAGE_CONFIDENCE_THRESHOLD: "0.6"
+      REDIS_URL: redis://redis:6379/0
+    # Skip migrations/uvicorn — the api service owns those; just consume jobs.
+    command: ["rq", "worker", "-u", "redis://redis:6379/0", "triage"]
 
 volumes:
   pgdata:

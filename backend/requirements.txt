@@ -8,3 +8,5 @@ pydantic-settings>=2.3
 anthropic>=0.40
 passlib>=1.7
 PyJWT>=2.8
+redis>=5.0
+rq>=1.16

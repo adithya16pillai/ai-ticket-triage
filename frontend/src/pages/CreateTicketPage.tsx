@@ -6,7 +6,7 @@ import {
   TriageSourceBadge,
 } from "../components/badges";
 import { Button, Input, Label, Textarea } from "../components/ui";
-import { useCreateTicket } from "../lib/queries";
+import { useCreateTicket, useTicketPolling } from "../lib/queries";
 import type { TicketCreate } from "../types";
 
 export function CreateTicketPage() {
@@ -24,7 +24,20 @@ export function CreateTicketPage() {
 
   // After creation we show the triage result inline so the agent can see what
   // the AI suggested before navigating to edit it — human-in-the-loop.
-  const created = create.data;
+  const createdId = create.data?.id ?? "";
+  const wasQueued =
+    create.data?.triage_source === "fallback" &&
+    create.data?.triage_reason === "queued for triage";
+
+  // In async mode the POST returns immediately as "queued"; poll until the
+  // worker fills in triage, then reveal the suggestion. In sync mode the POST
+  // result is already final and polling never starts.
+  const poll = useTicketPolling(createdId, wasQueued);
+  const created = poll.data ?? create.data;
+  const stillQueued =
+    !!created &&
+    created.triage_source === "fallback" &&
+    created.triage_reason === "queued for triage";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -73,7 +86,12 @@ export function CreateTicketPage() {
             </h2>
             <TriageSourceBadge source={created.triage_source} />
           </div>
-          {created.triage_source === "fallback" ? (
+          {stillQueued ? (
+            <p className="text-sm text-slate-600">
+              Triage in progress… a background worker is classifying this ticket.
+              It will update automatically.
+            </p>
+          ) : created.triage_source === "fallback" ? (
             <p className="text-sm text-slate-600">
               The model was unavailable or unsure, so this ticket landed as{" "}
               <strong>uncategorised</strong> for manual triage. Open it to set the

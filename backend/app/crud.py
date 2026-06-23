@@ -6,14 +6,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.activity import record_event, triage_payload
+from app.config import settings
 from app.enums import (
     CommentSource,
     TicketEventType,
     TicketPriority,
     TicketStatus,
     TriageSource,
+    UNCATEGORISED,
 )
 from app.models import Comment, Ticket, TicketEvent
+from app.queue import enqueue_triage
 from app.reply import ReplyDraftOutcome, draft_reply
 from app.schemas import CommentCreate, TicketCreate, TicketUpdate
 from app.triage import TriageOutcome, triage_ticket
@@ -65,11 +68,58 @@ def _apply_triage_outcome(ticket: Ticket, outcome: TriageOutcome) -> None:
     ticket.triaged_at = func.now()
 
 
+def _create_ticket_async(
+    db: Session, payload: TicketCreate, *, actor: str | None
+) -> Ticket:
+    """Async mode: write the ticket immediately as a fallback and enqueue triage.
+    Creation never touches the LLM, so it cannot fail on it — the invariant is
+    now structural, not incidental."""
+    ticket = Ticket(
+        title=payload.title,
+        description=payload.description,
+        status=TicketStatus.open,
+        category=UNCATEGORISED,
+        priority=TicketPriority.medium,
+        triage_source=TriageSource.fallback,
+        triage_reason="queued for triage",
+    )
+    db.add(ticket)
+    record_event(
+        db,
+        ticket,
+        TicketEventType.created,
+        "Ticket created — queued for triage",
+        actor=actor,
+    )
+    db.commit()
+    db.refresh(ticket)
+    enqueue_triage(ticket.id)  # never raises; ticket stays valid if Redis is down
+    return ticket
+
+
+def apply_triage_job(db: Session, ticket: Ticket) -> Ticket:
+    """Worker entry: run the unchanged triage service against an existing ticket
+    and apply + audit the outcome. Used by the async worker."""
+    outcome = triage_ticket(ticket.title, ticket.description)
+    _apply_triage_outcome(ticket, outcome)
+    db.add(ticket)
+    _record_triage_event(
+        db, ticket, outcome, event_type=TicketEventType.triaged, actor=None
+    )
+    db.commit()
+    db.refresh(ticket)
+    return ticket
+
+
 def create_ticket(
     db: Session, payload: TicketCreate, *, actor: str | None = None
 ) -> Ticket:
     """Create a ticket. Triage runs here but creation never depends on it
-    succeeding — a failed/low-confidence triage just yields a fallback outcome."""
+    succeeding — a failed/low-confidence triage just yields a fallback outcome.
+    In async mode triage is deferred to a worker (see _create_ticket_async)."""
+    if settings.async_triage_enabled:
+        return _create_ticket_async(db, payload, actor=actor)
+
     outcome = triage_ticket(payload.title, payload.description)
 
     ticket = Ticket(

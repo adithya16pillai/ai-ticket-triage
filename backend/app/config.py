@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     reply_timeout_seconds: float = 20.0
     reply_confidence_threshold: float = 0.5
 
+    # --- Async triage (Redis + RQ worker) ---
+    # When false, triage runs synchronously on create (the v1 behaviour). When
+    # true, create returns immediately as a fallback and a worker fills triage in.
+    async_triage_enabled: bool = False
+    redis_url: str = "redis://localhost:6379/0"
+
     # --- Auth ---
     # When false, the API is open (single-agent demo) and events have no actor.
     auth_enabled: bool = False
