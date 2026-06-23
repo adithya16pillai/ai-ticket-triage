@@ -78,6 +78,11 @@ export function CreateTicketPage() {
               The model was unavailable or unsure, so this ticket landed as{" "}
               <strong>uncategorised</strong> for manual triage. Open it to set the
               fields yourself.
+              {created.triage_reason && (
+                <span className="block text-xs text-slate-500">
+                  Reason: {created.triage_reason}
+                </span>
+              )}
             </p>
           ) : (
             <dl className="grid grid-cols-3 gap-3 text-sm">

@@ -47,3 +47,10 @@ export function PriorityBadge({ priority }: { priority: TicketPriority }) {
 export function TriageSourceBadge({ source }: { source: TriageSource }) {
   return <Pill color={SOURCE_COLORS[source]}>{SOURCE_LABELS[source]}</Pill>;
 }
+
+/** Shows the AI's self-reported confidence. Amber below the 0.6 gate that would
+ *  have triggered a fallback, green above it. */
+export function ConfidenceBadge({ value }: { value: number }) {
+  const color = value < 0.6 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700";
+  return <Pill color={color}>confidence {value.toFixed(2)}</Pill>;
+}

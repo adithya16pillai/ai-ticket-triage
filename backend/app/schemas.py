@@ -39,5 +39,8 @@ class TicketRead(BaseModel):
     suggested_team: str | None
     assignee: str | None
     triage_source: TriageSource
+    triage_confidence: float | None
+    triage_reason: str | None
+    triaged_at: datetime | None
     created_at: datetime
     updated_at: datetime

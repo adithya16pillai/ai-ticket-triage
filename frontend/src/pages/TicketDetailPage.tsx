@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { TriageSourceBadge } from "../components/badges";
+import { ConfidenceBadge, TriageSourceBadge } from "../components/badges";
 import { Button, Input, Label, Select } from "../components/ui";
 import {
   useDeleteTicket,
@@ -56,8 +56,18 @@ export function TicketDetailPage() {
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="mb-2 flex items-start justify-between gap-4">
           <h1 className="text-lg font-semibold text-slate-900">{ticket.title}</h1>
-          <TriageSourceBadge source={ticket.triage_source} />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <TriageSourceBadge source={ticket.triage_source} />
+            {ticket.triage_confidence != null && (
+              <ConfidenceBadge value={ticket.triage_confidence} />
+            )}
+          </div>
         </div>
+        {ticket.triage_reason && (
+          <p className="mb-2 text-xs text-slate-500">
+            Triage note: {ticket.triage_reason}
+          </p>
+        )}
         <p className="whitespace-pre-wrap text-sm text-slate-600">
           {ticket.description}
         </p>

@@ -2,13 +2,26 @@
 except for the one explicit call into the triage service on create."""
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.enums import TicketPriority, TicketStatus, TriageSource
 from app.models import Ticket
 from app.schemas import TicketCreate, TicketUpdate
-from app.triage import triage_ticket
+from app.triage import TriageOutcome, triage_ticket
+
+
+def _apply_triage_outcome(ticket: Ticket, outcome: TriageOutcome) -> None:
+    """Copy a triage outcome onto a ticket, including the evidence
+    (confidence + reason) the service computes. Persisting these makes the
+    schema-validation + low-confidence-fallback story auditable in the product."""
+    ticket.priority = outcome.priority
+    ticket.category = outcome.category
+    ticket.suggested_team = outcome.suggested_team
+    ticket.triage_source = outcome.source
+    ticket.triage_confidence = outcome.confidence
+    ticket.triage_reason = outcome.reason
+    ticket.triaged_at = func.now()
 
 
 def create_ticket(db: Session, payload: TicketCreate) -> Ticket:
@@ -20,11 +33,8 @@ def create_ticket(db: Session, payload: TicketCreate) -> Ticket:
         title=payload.title,
         description=payload.description,
         status=TicketStatus.open,
-        priority=outcome.priority,
-        category=outcome.category,
-        suggested_team=outcome.suggested_team,
-        triage_source=outcome.source,
     )
+    _apply_triage_outcome(ticket, outcome)
     db.add(ticket)
     db.commit()
     db.refresh(ticket)
@@ -64,6 +74,10 @@ def update_ticket(db: Session, ticket: Ticket, payload: TicketUpdate) -> Ticket:
     triage_fields = {"priority", "category", "suggested_team"}
     if triage_fields & data.keys():
         ticket.triage_source = TriageSource.manual
+        # The AI's confidence no longer describes the stored value — keep the
+        # data honest about the human now being the source of truth.
+        ticket.triage_confidence = None
+        ticket.triage_reason = "manual override"
 
     for field, value in data.items():
         setattr(ticket, field, value)
@@ -82,10 +96,7 @@ def delete_ticket(db: Session, ticket: Ticket) -> None:
 def retriage_ticket(db: Session, ticket: Ticket) -> Ticket:
     """Re-run triage on demand for an existing ticket."""
     outcome = triage_ticket(ticket.title, ticket.description)
-    ticket.priority = outcome.priority
-    ticket.category = outcome.category
-    ticket.suggested_team = outcome.suggested_team
-    ticket.triage_source = outcome.source
+    _apply_triage_outcome(ticket, outcome)
     db.add(ticket)
     db.commit()
     db.refresh(ticket)

@@ -12,6 +12,9 @@ export interface Ticket {
   suggested_team: string | null;
   assignee: string | null;
   triage_source: TriageSource;
+  triage_confidence: number | null;
+  triage_reason: string | null;
+  triaged_at: string | null;
   created_at: string;
   updated_at: string;
 }

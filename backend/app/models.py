@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, String, Text, func
+from sqlalchemy import DateTime, Enum, Float, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,6 +39,14 @@ class Ticket(Base):
         Enum(TriageSource, name="triage_source"),
         nullable=False,
         default=TriageSource.fallback,
+    )
+
+    # Triage evidence — the confidence and reason the service already computes.
+    # Persisted (not just logged) so the validation + fallback story is auditable.
+    triage_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    triage_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    triaged_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     created_at: Mapped[datetime] = mapped_column(
