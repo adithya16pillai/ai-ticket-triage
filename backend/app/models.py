@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.clock import monotonic_now
 from app.database import Base
 from app.enums import (
+    CommentSource,
     TicketEventType,
     TicketPriority,
     TicketStatus,
@@ -75,6 +76,11 @@ class Ticket(Base):
         cascade="all, delete-orphan",
         order_by="TicketEvent.created_at",
     )
+    comments: Mapped[list["Comment"]] = relationship(
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="Comment.created_at",
+    )
 
 
 class TicketEvent(Base):
@@ -109,6 +115,38 @@ class TicketEvent(Base):
     )
 
     ticket: Mapped["Ticket"] = relationship(back_populates="events")
+
+
+class Comment(Base):
+    """A reply on a ticket. `source` marks whether it began as an AI draft, so
+    the human-in-the-loop story stays visible right down to the sent message."""
+
+    __tablename__ = "comments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    ticket_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tickets.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    author: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[CommentSource] = mapped_column(
+        Enum(CommentSource, name="comment_source"),
+        nullable=False,
+        default=CommentSource.human,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=monotonic_now,
+        server_default=func.now(),
+    )
+
+    ticket: Mapped["Ticket"] = relationship(back_populates="comments")
 
 
 class User(Base):

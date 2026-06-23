@@ -1,5 +1,7 @@
 import type {
   AuthToken,
+  Comment,
+  CommentCreate,
   LoginRequest,
   Ticket,
   TicketCreate,
@@ -86,6 +88,15 @@ export const api = {
 
   draftReply: (id: string) =>
     request<ReplyDraft>(`/tickets/${id}/draft-reply`, { method: "POST" }),
+
+  listComments: (id: string) =>
+    request<Comment[]>(`/tickets/${id}/comments`),
+
+  addComment: (id: string, payload: CommentCreate) =>
+    request<Comment>(`/tickets/${id}/comments`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   health: () =>
     request<{ auth_enabled: boolean; triage_enabled: boolean }>("/health", {

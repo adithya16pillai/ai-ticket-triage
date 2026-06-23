@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.enums import (
+    CommentSource,
     TicketEventType,
     TicketPriority,
     TicketStatus,
@@ -87,6 +88,22 @@ class ReplyDraftRead(BaseModel):
     triage_source: TriageSource  # ai = validated suggestion; fallback = unavailable
     confidence: float | None
     reason: str | None
+
+
+class CommentCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)
+    source: CommentSource = CommentSource.human
+
+
+class CommentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    ticket_id: uuid.UUID
+    author: str | None
+    body: str
+    source: CommentSource
+    created_at: datetime
 
 
 class TicketEventRead(BaseModel):

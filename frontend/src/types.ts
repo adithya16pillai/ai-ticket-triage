@@ -61,6 +61,22 @@ export interface TicketFilters {
   assignee?: string;
 }
 
+export type CommentSource = "human" | "ai_assisted";
+
+export interface Comment {
+  id: string;
+  ticket_id: string;
+  author: string | null;
+  body: string;
+  source: CommentSource;
+  created_at: string;
+}
+
+export interface CommentCreate {
+  body: string;
+  source?: CommentSource;
+}
+
 export interface ReplyDraft {
   reply_text: string;
   tone: string | null;

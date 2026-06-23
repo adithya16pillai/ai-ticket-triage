@@ -5,13 +5,19 @@ import {
 } from "@tanstack/react-query";
 
 import { api } from "./api";
-import type { TicketCreate, TicketFilters, TicketUpdate } from "../types";
+import type {
+  CommentCreate,
+  TicketCreate,
+  TicketFilters,
+  TicketUpdate,
+} from "../types";
 
 const keys = {
   all: ["tickets"] as const,
   list: (filters: TicketFilters) => ["tickets", "list", filters] as const,
   detail: (id: string) => ["tickets", "detail", id] as const,
   events: (id: string) => ["tickets", "detail", id, "events"] as const,
+  comments: (id: string) => ["tickets", "detail", id, "comments"] as const,
 };
 
 export function useTickets(filters: TicketFilters) {
@@ -82,5 +88,24 @@ export function useDraftReply(id: string) {
   return useMutation({
     mutationFn: () => api.draftReply(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.events(id) }),
+  });
+}
+
+export function useComments(id: string) {
+  return useQuery({
+    queryKey: keys.comments(id),
+    queryFn: () => api.listComments(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useAddComment(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CommentCreate) => api.addComment(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.comments(id) });
+      qc.invalidateQueries({ queryKey: keys.events(id) });
+    },
   });
 }

@@ -10,6 +10,8 @@ from app.auth.deps import current_actor
 from app.database import get_db
 from app.enums import TicketPriority, TicketStatus
 from app.schemas import (
+    CommentCreate,
+    CommentRead,
     ReplyDraftRead,
     TicketCreate,
     TicketEventRead,
@@ -105,3 +107,26 @@ def list_ticket_events(
 ) -> list[TicketEventRead]:
     _get_or_404(db, ticket_id)
     return crud.list_ticket_events(db, ticket_id)
+
+
+@router.get("/{ticket_id}/comments", response_model=list[CommentRead])
+def list_comments(
+    ticket_id: uuid.UUID, db: Session = Depends(get_db)
+) -> list[CommentRead]:
+    _get_or_404(db, ticket_id)
+    return crud.list_comments(db, ticket_id)
+
+
+@router.post(
+    "/{ticket_id}/comments",
+    response_model=CommentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_comment(
+    ticket_id: uuid.UUID,
+    payload: CommentCreate,
+    db: Session = Depends(get_db),
+    actor: str | None = Depends(current_actor),
+) -> CommentRead:
+    ticket = _get_or_404(db, ticket_id)
+    return crud.add_comment(db, ticket, payload, actor=actor)

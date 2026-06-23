@@ -4,6 +4,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ConfidenceBadge, TriageSourceBadge } from "../components/badges";
 import { Button, Input, Label, Select, Textarea } from "../components/ui";
 import {
+  useAddComment,
+  useComments,
   useDeleteTicket,
   useDraftReply,
   useRetriage,
@@ -34,12 +36,17 @@ export function TicketDetailPage() {
   const retriage = useRetriage(id);
   const draftReply = useDraftReply(id);
   const { data: events } = useTicketEvents(id);
+  const { data: comments } = useComments(id);
+  const addComment = useAddComment(id);
 
   // Local draft so the agent edits, then commits with Save.
   const [draft, setDraft] = useState<TicketUpdate>({});
   // Editable AI reply draft — human-in-the-loop before it's ever sent.
   const [reply, setReply] = useState("");
   const [replyNote, setReplyNote] = useState<string | null>(null);
+  // Tracks whether the current reply text originated from an AI draft, so the
+  // posted comment can be marked ai_assisted even after the agent edits it.
+  const [replyFromAI, setReplyFromAI] = useState(false);
   useEffect(() => {
     if (ticket) {
       setDraft({
@@ -74,11 +81,13 @@ export function TicketDetailPage() {
     draftReply.mutate(undefined, {
       onSuccess: (d) => {
         if (d.triage_source === "fallback") {
+          setReplyFromAI(false);
           setReplyNote(
             `The model could not draft a reply${d.reason ? ` (${d.reason})` : ""}. Write one below.`,
           );
         } else {
           setReply(d.reply_text);
+          setReplyFromAI(true);
           setReplyNote(
             d.needs_human_review
               ? "The model flagged this draft for careful human review before sending."
@@ -87,6 +96,20 @@ export function TicketDetailPage() {
         }
       },
     });
+  }
+
+  function sendReply() {
+    if (!reply.trim()) return;
+    addComment.mutate(
+      { body: reply, source: replyFromAI ? "ai_assisted" : "human" },
+      {
+        onSuccess: () => {
+          setReply("");
+          setReplyFromAI(false);
+          setReplyNote(null);
+        },
+      },
+    );
   }
 
   return (
@@ -200,27 +223,64 @@ export function TicketDetailPage() {
         )}
       </div>
 
-      <div className="space-y-3 rounded-lg border border-slate-200 bg-white p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800">Reply</h2>
-          <Button
-            variant="secondary"
-            onClick={generateDraft}
-            disabled={draftReply.isPending}
-          >
-            {draftReply.isPending ? "Drafting…" : "Draft reply with AI"}
-          </Button>
+      <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+        <h2 className="text-sm font-semibold text-slate-800">Conversation</h2>
+
+        {!comments || comments.length === 0 ? (
+          <p className="text-sm text-slate-500">No replies yet.</p>
+        ) : (
+          <ul className="space-y-3">
+            {comments.map((c) => (
+              <li key={c.id} className="rounded-md bg-slate-50 p-3">
+                <div className="mb-1 flex items-center gap-2 text-xs text-slate-500">
+                  <span className="font-medium text-slate-700">
+                    {c.author ?? "Agent"}
+                  </span>
+                  {c.source === "ai_assisted" && (
+                    <span className="rounded-full bg-indigo-100 px-2 py-0.5 font-medium text-indigo-700">
+                      AI-assisted
+                    </span>
+                  )}
+                  <span>· {new Date(c.created_at).toLocaleString()}</span>
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-slate-700">{c.body}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="space-y-2 border-t border-slate-100 pt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Reply
+            </h3>
+            <Button
+              variant="secondary"
+              onClick={generateDraft}
+              disabled={draftReply.isPending}
+            >
+              {draftReply.isPending ? "Drafting…" : "Draft reply with AI"}
+            </Button>
+          </div>
+          <Textarea
+            rows={6}
+            value={reply}
+            onChange={(e) => {
+              setReply(e.target.value);
+              if (replyFromAI && e.target.value === "") setReplyFromAI(false);
+            }}
+            placeholder="Write a reply, or let the AI draft one for you to edit…"
+          />
+          {replyNote && <p className="text-xs text-slate-500">{replyNote}</p>}
+          <div className="flex items-center gap-3">
+            <Button onClick={sendReply} disabled={addComment.isPending || !reply.trim()}>
+              {addComment.isPending ? "Sending…" : "Send reply"}
+            </Button>
+            <p className="text-xs text-slate-400">
+              AI drafts are suggestions — edited drafts post as “AI-assisted”.
+            </p>
+          </div>
         </div>
-        <Textarea
-          rows={6}
-          value={reply}
-          onChange={(e) => setReply(e.target.value)}
-          placeholder="Write a reply, or let the AI draft one for you to edit…"
-        />
-        {replyNote && <p className="text-xs text-slate-500">{replyNote}</p>}
-        <p className="text-xs text-slate-400">
-          Drafts are suggestions — review and edit before sending.
-        </p>
       </div>
 
       <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-6">

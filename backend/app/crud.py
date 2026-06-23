@@ -6,10 +6,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.activity import record_event, triage_payload
-from app.enums import TicketEventType, TicketPriority, TicketStatus, TriageSource
-from app.models import Ticket, TicketEvent
+from app.enums import (
+    CommentSource,
+    TicketEventType,
+    TicketPriority,
+    TicketStatus,
+    TriageSource,
+)
+from app.models import Comment, Ticket, TicketEvent
 from app.reply import ReplyDraftOutcome, draft_reply
-from app.schemas import TicketCreate, TicketUpdate
+from app.schemas import CommentCreate, TicketCreate, TicketUpdate
 from app.triage import TriageOutcome, triage_ticket
 
 
@@ -224,6 +230,41 @@ def draft_ticket_reply(
     )
     db.commit()
     return outcome
+
+
+def add_comment(
+    db: Session, ticket: Ticket, payload: CommentCreate, *, actor: str | None = None
+) -> Comment:
+    """Post a reply on a ticket and audit it. `ai_assisted` marks replies that
+    began as an AI draft (then human-edited)."""
+    comment = Comment(
+        ticket=ticket,
+        author=actor,
+        body=payload.body,
+        source=payload.source,
+    )
+    db.add(comment)
+    label = "AI-assisted reply" if payload.source == CommentSource.ai_assisted else "Reply"
+    record_event(
+        db,
+        ticket,
+        TicketEventType.comment,
+        f"{label} posted",
+        payload={"source": payload.source.value},
+        actor=actor,
+    )
+    db.commit()
+    db.refresh(comment)
+    return comment
+
+
+def list_comments(db: Session, ticket_id: uuid.UUID) -> list[Comment]:
+    stmt = (
+        select(Comment)
+        .where(Comment.ticket_id == ticket_id)
+        .order_by(Comment.created_at.asc(), Comment.id.asc())
+    )
+    return list(db.scalars(stmt).all())
 
 
 def list_ticket_events(db: Session, ticket_id: uuid.UUID) -> list[TicketEvent]:

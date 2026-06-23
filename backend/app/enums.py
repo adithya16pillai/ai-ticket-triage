@@ -39,4 +39,9 @@ class UserRole(str, Enum):
     admin = "admin"
 
 
+class CommentSource(str, Enum):
+    human = "human"            # written by an agent
+    ai_assisted = "ai_assisted"  # originated from an AI draft, then agent-edited
+
+
 UNCATEGORISED = "uncategorised"
