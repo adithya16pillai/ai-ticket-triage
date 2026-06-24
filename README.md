@@ -1,14 +1,11 @@
-# TriageAI
+# Ai Ticket Triage
 
 An internal IT support helpdesk where agents own the full ticket lifecycle and an
-LLM does the **first-pass triage** of every new ticket — suggesting a category,
+LLM does the **first-pass triage** of every new ticket - suggesting a category,
 priority, and target team. Every AI output is a *suggestion with a human in the
 loop*: the agent confirms or overrides it, and the app stays fully usable when the
 model is down.
 
-This repo started as the v1 (MVP): ticket CRUD + a responsible AI triage layer.
-**v2** builds on that without weakening the responsible-AI core — see
-[v2 features](#v2-features) below.
 
 ## Stack
 
@@ -37,7 +34,7 @@ raises, and it always returns either a schema-valid `ai` suggestion or an explic
 `fallback`. That keeps the route handlers plain CRUD and makes the fallback logic
 unit-testable without a network (`backend/tests/test_triage.py`).
 
-### Responsible-AI design (the part that matters)
+### Features & Design
 
 1. **Structured output, not free text** — the model is forced to call a
    `submit_triage` tool with a JSON schema; the response is parsed as data.
@@ -50,38 +47,29 @@ unit-testable without a network (`backend/tests/test_triage.py`).
    save is what commits them. Editing a triage field flips `triage_source` to
    `manual`.
 5. **Bounded & cheap** — one call per ticket, capped tokens, no retry loops.
-
-Every triage records its **confidence and reason** on the ticket and an
-append-only **activity log** entry, so the validation + fallback + human-override
-story is visible and auditable in the running product — not just in the code.
-
-## v2 features
-
-Built on the v1 triage boundary, in dependency order:
-
-1. **Triage evidence** — the confidence and fallback reason the service computes
+6. **Triage evidence** — the confidence and fallback reason the service computes
    are now persisted on the ticket and shown in the UI (a confidence chip + a
    triage note), so a low-confidence fallback explains itself.
-2. **Audit / activity log** — an append-only `ticket_events` timeline records
+7. **Audit / activity log** — an append-only `ticket_events` timeline records
    every AI suggestion, fallback, manual override, status change, re-triage,
    reply draft, and comment (`GET /tickets/{id}/events`). Events are written in
    the same transaction as the change, so the log can never disagree with state.
-3. **Auth** — feature-flagged JWT auth (`AUTH_ENABLED`). When on, mutations
+8. **Auth** — feature-flagged JWT auth (`AUTH_ENABLED`). When on, mutations
    require a bearer token and the audit log records the real agent as the actor;
    when off, the single-agent demo runs open. Password hashing is pbkdf2_sha256.
-4. **AI reply drafting** — a second responsible-AI feature that *mirrors the
+9. **AI reply drafting** — a second responsible-AI feature that *mirrors the
    triage boundary verbatim* (forced structured output via a `submit_draft`
    tool, Pydantic validation, a never-raises confidence-gated fallback). It only
    ever returns a draft for the agent to edit — `POST /tickets/{id}/draft-reply`.
-5. **Comments** — a reply thread (`/tickets/{id}/comments`). A reply that began
+10. **Comments** — a reply thread (`/tickets/{id}/comments`). A reply that began
    as an AI draft is marked `ai_assisted`, closing the human-in-the-loop loop.
-6. **Async triage** — with `ASYNC_TRIAGE_ENABLED`, create returns instantly as a
+11. **Async triage** — with `ASYNC_TRIAGE_ENABLED`, create returns instantly as a
    `fallback` ("queued for triage"), enqueues a job to Redis, and an RQ worker
    runs the **unchanged** triage service and fills it in. This makes the
    "creation never depends on the LLM" invariant structural; the triage service
    itself is untouched — only the caller moves to a worker thread.
 
-## Running it
+## Installation
 
 ### 1. Backend + database (Docker Compose)
 
