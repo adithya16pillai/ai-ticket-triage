@@ -1,4 +1,4 @@
-# Ai Ticket Triage
+# AI Ticket Triage
 
 An internal IT support helpdesk where agents own the full ticket lifecycle and an
 LLM does the **first-pass triage** of every new ticket - suggesting a category,
@@ -19,15 +19,6 @@ model is down.
 | Async     | Redis + RQ worker for off-request triage (feature-flagged) |
 | Infra     | Docker Compose (Postgres + Redis + API + worker) |
 
-## Architecture
-
-```
-React SPA  ──HTTP/JSON──▶  FastAPI  ──▶  PostgreSQL
-                              │
-                              └──▶  Triage service ──▶  Anthropic API
-                                   (validation + fallback)   (tool output)
-```
-
 The **triage service** (`backend/app/triage/`) is the single, isolated boundary to
 the non-deterministic LLM. It is the only place that talks to Anthropic, it never
 raises, and it always returns either a schema-valid `ai` suggestion or an explicit
@@ -36,38 +27,38 @@ unit-testable without a network (`backend/tests/test_triage.py`).
 
 ### Features & Design
 
-1. **Structured output, not free text** — the model is forced to call a
+1. **Structured output, not free text** - the model is forced to call a
    `submit_triage` tool with a JSON schema; the response is parsed as data.
-2. **Schema validation at the boundary** — output is validated against a Pydantic
+2. **Schema validation at the boundary** - output is validated against a Pydantic
    model (`TriageSuggestion`) before it can touch the database.
-3. **Confidence-gated fallback** — low confidence, a timeout, an API error, or
+3. **Confidence-gated fallback** - low confidence, a timeout, an API error, or
    off-schema output → the ticket is still created, as `uncategorised` with
    `triage_source = fallback`. **Ticket creation never depends on the LLM.**
-4. **Human in the loop** — suggestions are pre-filled and editable; the agent's
+4. **Human in the loop** - suggestions are pre-filled and editable; the agent's
    save is what commits them. Editing a triage field flips `triage_source` to
    `manual`.
-5. **Bounded & cheap** — one call per ticket, capped tokens, no retry loops.
-6. **Triage evidence** — the confidence and fallback reason the service computes
+5. **Bounded & cheap** - one call per ticket, capped tokens, no retry loops.
+6. **Triage evidence** - the confidence and fallback reason the service computes
    are now persisted on the ticket and shown in the UI (a confidence chip + a
    triage note), so a low-confidence fallback explains itself.
-7. **Audit / activity log** — an append-only `ticket_events` timeline records
+7. **Audit / activity log** - an append-only `ticket_events` timeline records
    every AI suggestion, fallback, manual override, status change, re-triage,
    reply draft, and comment (`GET /tickets/{id}/events`). Events are written in
    the same transaction as the change, so the log can never disagree with state.
-8. **Auth** — feature-flagged JWT auth (`AUTH_ENABLED`). When on, mutations
+8. **Auth** - feature-flagged JWT auth (`AUTH_ENABLED`). When on, mutations
    require a bearer token and the audit log records the real agent as the actor;
    when off, the single-agent demo runs open. Password hashing is pbkdf2_sha256.
-9. **AI reply drafting** — a second responsible-AI feature that *mirrors the
+9. **AI reply drafting** - a second responsible-AI feature that *mirrors the
    triage boundary verbatim* (forced structured output via a `submit_draft`
    tool, Pydantic validation, a never-raises confidence-gated fallback). It only
-   ever returns a draft for the agent to edit — `POST /tickets/{id}/draft-reply`.
-10. **Comments** — a reply thread (`/tickets/{id}/comments`). A reply that began
+   ever returns a draft for the agent to edit - `POST /tickets/{id}/draft-reply`.
+10. **Comments** - a reply thread (`/tickets/{id}/comments`). A reply that began
    as an AI draft is marked `ai_assisted`, closing the human-in-the-loop loop.
-11. **Async triage** — with `ASYNC_TRIAGE_ENABLED`, create returns instantly as a
+11. **Async triage** - with `ASYNC_TRIAGE_ENABLED`, create returns instantly as a
    `fallback` ("queued for triage"), enqueues a job to Redis, and an RQ worker
    runs the **unchanged** triage service and fills it in. This makes the
    "creation never depends on the LLM" invariant structural; the triage service
-   itself is untouched — only the caller moves to a worker thread.
+   itself is untouched - only the caller moves to a worker thread.
 
 ## Installation
 
@@ -151,10 +142,3 @@ Backend env vars (see `backend/.env.example`):
 | `ASYNC_TRIAGE_ENABLED` | `false` | Defer triage to the Redis/RQ worker |
 | `REDIS_URL` | `redis://localhost:6379/0` | Broker for async triage |
 
-## v1 → v2
-
-The v1 deferrals — auth, reply drafting, comments/activity log, and Redis-backed
-async triage — are now implemented (see [v2 features](#v2-features)). All are
-additive and feature-flagged: with `AUTH_ENABLED=false` and
-`ASYNC_TRIAGE_ENABLED=false` the app behaves exactly like the v1 single-agent
-demo (open API, synchronous triage on create).
