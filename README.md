@@ -11,12 +11,12 @@ model is down.
 
 | Layer     | Choice |
 |-----------|--------|
-| Frontend  | React + Vite + TypeScript, TanStack Query, React Hook Form, Tailwind |
+| Frontend  | React + Vite + TypeScript, React Hook Form, Tailwind |
 | Backend   | FastAPI, Pydantic, SQLAlchemy 2.0, Alembic |
 | Database  | PostgreSQL |
-| AI        | Anthropic Claude API, tool use for structured output |
-| Auth      | JWT (PyJWT) + pbkdf2_sha256 (passlib), feature-flagged |
-| Async     | Redis + RQ worker for off-request triage (feature-flagged) |
+| AI        | Anthropic Claude API |
+| Auth      | JWT |
+| Async     | Redis |
 | Infra     | Docker Compose (Postgres + Redis + API + worker) |
 
 The **triage service** (`backend/app/triage/`) is the single, isolated boundary to
